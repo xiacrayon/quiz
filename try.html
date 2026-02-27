@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塞尔沃利·文森的调教问卷</title>
+    <style>
+        :root {
+            --vince-red: #8b0000;
+            --xia-green: #6b8e23;
+            --apple-red: #ff0800;
+            --gold: #ffd700;
+            --bg-dark: #1a1a1a;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #e0e0e0;
+            font-family: 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 90%;
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px auto;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(139, 0, 0, 0.5);
+            border: 2px solid var(--vince-red);
+        }
+
+        h1 {
+            color: var(--vince-red);
+            text-align: center;
+            border-bottom: 2px solid var(--vince-red);
+            padding-bottom: 10px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            background: #333;
+            padding: 10px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .coin-count { color: var(--gold); }
+
+        /* 问卷样式 */
+        .question-card {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        .question-card.active {
+            display: block;
+        }
+
+        .options button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: #444;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-align: left;
+        }
+
+        .options button:hover {
+            background: var(--vince-red);
+            transform: translateX(5px);
+        }
+
+        /* 盲盒九宫格 */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .blind-box {
+            aspect-ratio: 1/1;
+            background: #444;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.3s;
+            border: 2px dashed var(--gold);
+            font-size: 12px;
+            text-align: center;
+            padding: 5px;
+        }
+
+        .blind-box.opened {
+            background: #222;
+            border: 2px solid var(--vince-red);
+            cursor: default;
+        }
+
+        /* 特效 */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .final-reward {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            color: black;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 2em;
+            font-weight: bold;
+            z-index: 100;
+            box-shadow: 0 0 50px var(--apple-red);
+        }
+
+        .disclaimer {
+            font-size: 0.8em;
+            color: #888;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .reward-item { font-size: 24px; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="game-container">
+    <h1>🍷 文森 & 夏夏 🍎</h1>
+    <div class="stats">
+        <span>进度: <span id="current-q">1</span>/9</span>
+        <span>金币: <span id="coins" class="coin-count">0</span> 🪙</span>
+    </div>
+
+    <div id="quiz-section"></div>
+
+    <div id="box-section" style="display:none;">
+        <h3 style="text-align:center; color: var(--gold);">恭喜！使用金币抽取盲盒吧</h3>
+        <p style="text-align:center; font-size: 0.9em;">(点击盒子消耗1枚金币解锁)</p>
+        <div class="grid" id="luck-grid" style="display: grid;"></div>
+    </div>
+
+    <div class="disclaimer">
+        除程序外为 AI 帮忙，其余文字内容均为作者撰写。
+    </div>
+</div>
+
+<div id="final-modal" class="final-reward">
+    ✨ 夏夏给你OC画画！ ✨
+</div>
+
+<script>
+    const questions = [
+        { q: "文森的 MBTI 是？", a: ["isfp", "infp", "esfp", "enfp"], correct: 0 },
+        { q: "文森会做的事是哪一件？", a: ["躺在酒吧地板上", "当众出糗", "紧张到内急", "以上都是"], correct: 3 },
+        { q: "文森会对夏夏做的事是哪一件？", a: ["长期不理夏夏", "在她面前如厕", "恶劣挑逗", "肆无忌惮放屁"], correct: 2 },
+        { q: "夏夏的手围和脚码？", a: ["17/37", "14/36", "20/44", "15/37"], correct: 1 },
+        { q: "文森讨厌夏夏做什么？", a: ["画文森出糗图", "暴打文森", "监考文森", "贬低自己"], correct: 3 },
+        { q: "夏夏的 MBTI 是？", a: ["isfp", "infp", "esfp", "enfp"], correct: 1 },
+        { q: "文森喜欢抽烟的牌子？", a: ["骆驼", "万宝路", "长城", "爱喜"], correct: 1 },
+        { q: "文森喜欢的食物？", a: ["鸡肉", "牛肉", "三文鱼", "这一大长串包含章鱼烧拉面的奇怪描述"], correct: 1 },
+        { q: "文森长得像什么？", a: ["沃尔玛塑料袋", "鸡屁股", "金属零件", "润肤乳"], correct: 1 }
+    ];
+
+    // 为了保持第8题的幽默感，特殊处理长文本
+    questions[7].a[3] = "椰奶荔枝口味蜜桃啵啵配草莓酱奶盖奶茶黑糖珍珠大奶昔配芒果杨枝甘露青提超绝西米脆甜可口好吃藻蓝蛋白草莓片奶油彩色糖粒坚果碎巧克力酱香蕉片薄荷巧克力冰淇淋配芒果雪芭可丽饼黑松露奶油酱白松露片配切達与马苏里拉芝士培根菌菇鱼子酱意大利通心粉配迷迭香番茄土豆炖肉与美乃滋帕瑪森芝士脆细薯条与炸杏鲍菇炙烤厚切鹅肝与烤玉子芝士烧鸟烤牛舌与牛肉生甜虾刺身与蟹肉酱烧鳗鱼温泉蛋可乐饼的盖饭与寿司碗和芝士玉米章鱼烧豚骨大海苔拉面。";
+
+    const rewards = [
+        { n: "文森的调酒笔记", e: "📖" },
+        { n: "夏夏的苹果汁", e: "🧃" },
+        { n: "文森烤的曲奇(难吃)", e: "🍪" },
+        { n: "文森臀部精细模型", e: "🔧" },
+        { n: "文森的腔调", e: "👄" },
+        { n: "夏夏万年不变黄毛衣", e: "👕" },
+        { n: "刻了夏夏名字的钻石杯", e: "🍷" },
+        { n: "文森偷卖的女仆装", e: "👗" },
+        { n: "夏夏的蜡笔盒", e: "🖍️" }
+    ];
+
+    let currentIdx = 0;
+    let coins = 0;
+    let openedBoxes = 0;
+
+    function initQuiz() {
+        const section = document.getElementById('quiz-section');
+        questions.forEach((q, i) => {
+            const card = document.createElement('div');
+            card.className = `question-card ${i === 0 ? 'active' : ''}`;
+            card.innerHTML = `
+                <p><strong>问题 ${i+1}:</strong> ${q.q}</p>
+                <div class="options">
+                    ${q.a.map((opt, optIdx) => `<button onclick="checkAnswer(${i}, ${optIdx})">${opt}</button>`).join('')}
+                </div>
+            `;
+            section.appendChild(card);
+        });
+    }
+
+    window.checkAnswer = function(qIdx, choice) {
+        if (choice === questions[qIdx].correct) {
+            coins++;
+            document.getElementById('coins').innerText = coins;
+            alert("回答正确！获得 1 枚金币 🪙");
+        } else {
+            alert("答错了...文森露出了恶劣的嘲笑。");
+        }
+
+        const cards = document.querySelectorAll('.question-card');
+        cards[qIdx].classList.remove('active');
+        
+        if (qIdx + 1 < questions.length) {
+            currentIdx++;
+            document.getElementById('current-q').innerText = currentIdx + 1;
+            cards[qIdx+1].classList.add('active');
+        } else {
+            showBoxes();
+        }
+    };
+
+    function showBoxes() {
+        document.getElementById('quiz-section').style.display = 'none';
+        document.getElementById('box-section').style.display = 'block';
+        const grid = document.getElementById('luck-grid');
+        
+        rewards.forEach((item, i) => {
+            const box = document.createElement('div');
+            box.className = 'blind-box';
+            box.id = `box-${i}`;
+            box.innerHTML = '❓';
+            box.onclick = () => openBox(i);
+            grid.appendChild(box);
+        });
+    }
+
+    window.openBox = function(i) {
+        const box = document.getElementById(`box-${i}`);
+        if (box.classList.contains('opened')) return;
+        
+        if (coins > 0) {
+            coins--;
+            openedBoxes++;
+            document.getElementById('coins').innerText = coins;
+            box.classList.add('opened');
+            box.innerHTML = `<span class="reward-item">${rewards[i].e}</span><br>${rewards[i].n}`;
+            
+            if (openedBoxes === 9) {
+                triggerFinalReward();
+            }
+        } else {
+            alert("金币不足！谁让你不多了解一下文森？");
+        }
+    };
+
+    function triggerFinalReward() {
+        const modal = document.getElementById('final-modal');
+        modal.style.display = 'block';
+        
+        // 简易爆炸粒子效果
+        for(let i=0; i<50; i++) {
+            createParticle();
+        }
+    }
+
+    function createParticle() {
+        const p = document.createElement('div');
+        p.style.position = 'fixed';
+        p.style.left = '50%';
+        p.style.top = '50%';
+        p.style.width = '10px';
+        p.style.height = '10px';
+        p.style.backgroundColor = ['#ff0800', '#ffd700', '#ffffff'][Math.floor(Math.random()*3)];
+        p.style.borderRadius = '50%';
+        p.style.zIndex = '101';
+        document.body.appendChild(p);
+
+        const angle = Math.random() * Math.PI * 2;
+        const velocity = Math.random() * 10 + 5;
+        let x = 0;
+        let y = 0;
+
+        const anim = setInterval(() => {
+            x += Math.cos(angle) * velocity;
+            y += Math.sin(angle) * velocity;
+            p.style.transform = `translate(${x}px, ${y}px)`;
+            p.style.opacity = parseFloat(p.style.opacity || 1) - 0.02;
+            if (p.style.opacity <= 0) {
+                clearInterval(anim);
+                p.remove();
+            }
+        }, 20);
+    }
+
+    initQuiz();
+</script>
+
+</body>
+</html>
